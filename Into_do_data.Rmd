@@ -1,0 +1,200 @@
+---
+title: 'Week 2 Lab: Introduction to Data'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Packages
+
+
+install.packages("statar")
+install.packages("ggplot2")
+install.packages("dplyr")
+
+```{r}
+library(statar)
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+
+```{r}
+?nycflights
+```
+
+### Data
+
+Airline on-time data for all flights departing NYC in 2013. Also includes useful 'metadata' on airlines, airports, weather, and planes.
+
+```{r}
+data("nycflights")
+```
+
+```{r}
+str(nycflights)
+```
+
+## Analysis
+
+### Departure delays in flights to Raleigh-Durham (RDU)
+```{r hist-dep-delay}
+ggplot(data = nycflights, aes(x = dep_delay)) +
+  geom_histogram()
+```
+
+```{r hist-dep-delay-bins-15}
+ggplot(data = nycflights, aes(x = dep_delay)) +
+  geom_histogram(binwidth = 15)
+
+```
+
+```{r hist-dep-delay-bins-150}
+ggplot(data = nycflights, aes(x = dep_delay)) +
+  geom_histogram(binwidth = 150)
+```
+
+Binwidth was required since the histogram needs to be zoomed in more to observe how much space before 0 in the x-axis.
+
+### Create another vector to filter dest has valus Raleigh-Durham International Airport (RDU)
+
+```{r create-rdu_flights-filter-RDU}
+rdu_flights <- nycflights %>% 
+  filter(dest == "RDU")
+ggplot(data = rdu_flights, aes(x = dep_delay)) +
+  geom_histogram()
+```
+
+```{r rdu_flights-Sum}
+rdu_flights %>% 
+  summarise(mean_dd = mean(dep_delay), sd_dd = sd(dep_delay), n = n(), var(dep_delay), IQR(dep_delay), median(dep_delay), min(dep_delay), max(dep_delay))
+
+```
+
+### Create dataframe for SFO_FEB
+
+```{r create-dataframe-sfo_feb_flights}
+sfo_feb_flights <- nycflights %>% 
+  filter(dest == "SFO", month == 2)
+```
+
+```{r sfo_feb_flights}
+dim(sfo_feb_flights)
+```
+
+How many flights did head to SFO in February ?
+68
+
+```{r hist-sfo_feb_flighs-bins-10}
+ggplot(data = sfo_feb_flights, aes(x = arr_delay)) +
+  geom_histogram(binwidth = 10)
+
+```
+
+```{r summary-sfo_feb_flights}
+sfo_feb_flights %>% 
+  summarise(mean(arr_delay), median(arr_delay), max(arr_delay))
+```
+Some flights delayed more than 2 hours 
+
+```{r summary-custom-list-origin}
+rdu_flights %>% 
+  group_by(origin) %>% 
+  summarise(mean_dd = mean(dep_delay), sd_dd = sd(dep_delay), n = n())
+```
+
+```{r calculate the median arr_delay sfo_feb_flights}
+sfo_feb_flights %>% 
+  group_by(carrier) %>% 
+  summarise(med_ad = median(arr_delay), iqr_ad = IQR(arr_delay)) %>% 
+  arrange(desc(iqr_ad))
+
+
+```
+Delta and United airlines has the highest IQR of arrival delays
+
+### Departure delays over months
+
+stakeholders ask Which month has the highest average delay departing from an NYC airport?
+
+```{r calculate monthly mean averages for departure delays}
+nycflights %>% 
+  group_by(month) %>% 
+  summarise(mean_dd = mean(dep_delay), iqr_dd = IQR(dep_delay)) %>% 
+  arrange(desc(mean_dd))
+
+```
+July has the highest average departure delay from an NYC airport
+
+stakeholder ask which month has the highest median departure delay from an NYC airport ?
+
+```{r calculate monthly median for departure delays }
+nycflights %>% 
+  group_by(month) %>% 
+  summarise(med_dd = median(dep_delay)) %>% 
+  arrange(desc(med_dd))
+
+```
+December has the highest median departure delay from an NYC airport
+
+stakeholder ask which is more reliable masure for deciding which month(s) to avoid flying if customs really dislike delayed flights (mean or median), and why?
+
+```{r delay month box}
+ggplot(nycflights, aes(x = factor(month), y = dep_delay)) +
+  geom_boxplot()
+```
+
+Mean would be more reliable as it gives us the true average
+
+### On time departure rate for NYC airports
+which NYC airport would customers choose to fly out of if they were selecting an airport simply based on time departure percentage?
+
+```{r dep_type}
+nycflights <- nycflights %>% 
+  mutate(dep_type = ifelse(dep_delay < 5, "on time", "delayed"))
+
+```
+
+```{r}
+nycflights %>% 
+  group_by(origin) %>% 
+  summarise(ot_dep_rate = sum(dep_type == "on time") / n()) %>% 
+  arrange(desc(ot_dep_rate))
+```
+
+```{r}
+ggplot(data = nycflights, aes(x = origin, fill = dep_type)) +
+  geom_bar()
+```
+
+they were choose LGA 
+
+```{r fastest-avg-speed-tailnum}
+nycflights <- nycflights %>% 
+  mutate(avg_speed = distance / (air_time/60))
+nycflights %>% 
+  select(avg_speed, tailnum) %>% 
+  arrange(desc(avg_speed))
+
+```
+
+```{r avg-speed-dist-scatter}
+ggplot(nycflights, aes(x = distance, y = avg_speed)) +
+  geom_point()
+```
+
+There is an overall postive association between distance and average speed. 
+
+```{r on-time-arr-perc}
+nycflights %>% 
+  mutate(arr_type = ifelse(arr_delay <= 0, "on time", "delayed")) %>% 
+  mutate(dep_type = ifelse(dep_delay <= 0, "on time", "delayed")) %>% 
+  select(arr_type,dep_type) %>% 
+  table()
+
+```
+
+3508/ (3508 + 9291) = 0.2740839
